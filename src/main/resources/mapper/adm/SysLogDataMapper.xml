@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.adm.mapper.SysLogDataMapper">
+
+
+    <select id="selectLastData" resultType="SysLogData">
+        select top 1 *
+        from sys_log_data
+        where log_dt between getdate() - 14 and getdate()
+        order by log_dt desc
+    </select>
+
+    <insert id="insertLoginLog" parameterType="string">
+        <![CDATA[
+        insert into sys_log_data (
+            log_dt,
+            use_gb,
+            sys_user,
+            conect_ip,
+            data_usg_qty,
+            reg_id,
+            reg_time,
+            upd_id,
+            upd_time
+        )
+        select
+            min(log_dt) as log_dt,
+            '접속' as use_gb,
+            sys_user,
+            max(conect_ip) as conect_ip,
+            100 as data_usg_qty,
+            'sys' as reg_id,
+            min(log_dt) as reg_time,
+            'sys' as upd_id,
+            min(log_dt) as upd_time
+        from
+        (
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '발주' as use_gb,
+                reg_id as sys_user,
+                '119.195.189.141' as conect_ip,
+                1 as data_usg_qty
+            from
+                mat_order
+            where
+                reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            union
+            select
+                convert(varchar, A.reg_time, 21) as log_dt,
+                B.code_name as use_gb,
+                A.reg_id as sys_user,
+                '119.195.189.141' as conect_ip,
+                1 as data_usg_qty
+            from
+                mat_tran A,
+                (
+                select
+                code,
+                code_name
+                from
+                common_code
+                where
+                code_type = 'TRAN_CD'
+                ) as B
+            where
+                A.reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and A.tran_cd = B.code
+                and A.reg_id <> ''
+            union
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '자재사용' as use_gb,
+                reg_id as sys_user,
+                '119.195.189.141' as conect_ip,
+                1 as data_usg_qty
+            from mat_use
+            where reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            union
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '시험검사' as use_gb,
+                reg_id as sys_user,
+                '119.195.189.141' as conect_ip,
+                1 as data_usg_qty
+            from quality_test
+            where reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            ) as dl
+        group by dl.sys_user
+        order by min(log_dt)
+        ]]>
+    </insert>
+
+    <insert id="insertSysLog" parameterType="string">
+        <![CDATA[
+        insert into sys_log_data (
+            log_dt,
+            use_gb,
+            sys_user,
+            conect_ip,
+            data_usg_qty,
+            reg_id,
+            reg_time,
+            upd_id,
+            upd_time
+        )
+        select
+            daily_log.*,
+            'sys' as reg_id,
+            getDate() as reg_time,
+            'sys' as upd_id,
+            getDate() as upd_time
+        from
+            (
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '발주' as use_gb,
+                reg_id as sys_use,
+                '119.195.189.141' as conect_ip,
+                1000 as data_usg_qty
+            from mat_order -- where order_date = '2022-12-27'
+            where reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            union
+            select
+                convert(varchar, A.reg_time, 21) as log_dt,
+                B.code_name as use_gb,
+                A.reg_id as sys_use,
+                '119.195.189.141' as conect_ip,
+                1000 as data_usg_qty
+            from mat_tran A,
+                (
+                select
+                code,
+                code_name
+                from
+                common_code
+                where
+                code_type = 'TRAN_CD'
+                ) as B
+            where A.reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and A.tran_cd = B.code
+                and A.reg_id <> ''
+            union
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '자재사용' as use_gb,
+                reg_id as sys_use,
+                '119.195.189.141' as conect_ip,
+                1000 as data_usg_qty
+            from mat_use -- where weigh_datetime between '2022-12-27' and '2022-12-27 23:59:59'
+            where
+                reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            union
+            select
+                convert(varchar, reg_time, 21) as log_dt,
+                '시험검사' as use_gb,
+                reg_id as sys_use,
+                '119.195.189.141' as conect_ip,
+                1000 as data_usg_qty
+            from quality_test
+            where reg_time >= #{startDate}
+                and reg_time < CONVERT(CHAR(10), dateadd(day, 1, #{startDate}), 23)
+                and reg_id <> ''
+            ) as daily_log
+        order by log_dt
+        ]]>
+    </insert>
+
+</mapper>

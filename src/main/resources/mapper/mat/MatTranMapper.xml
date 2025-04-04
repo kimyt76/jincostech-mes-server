@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatTranMapper">
+
+    <select id="getNextSeq" resultType="Integer">
+        SELECT isnull(max(ser_no),0) + 1
+        FROM mat_tran
+        WHERE tran_date = #{tranDate}
+          AND tran_cd = #{tranCd}
+    </select>
+
+
+    <select id="matTranStateList">
+        -- 자재거래현황
+        select
+            B.mat_tran_item_id,
+            A.mat_tran_id,
+            A.tran_cd,
+            A.tran_date,
+            A.ser_no,
+            A.area_cd,
+            A.src_storage_cd as storage_cd,
+            A.customer_cd,
+            A.member_cd,
+            A.order_type,
+            B.item_type_cd,
+            B.item_cd,
+            B.item_name,
+            B.lot_no,
+            B.test_no,
+            B.qty,
+            B.price,
+            B.supply_amt,
+            B.vat,
+            B.expiry_date,
+            B.confirm_state
+        from mat_tran A, mat_tran_item B
+        where A.mat_tran_id = B.mat_tran_id
+    </select>
+</mapper>

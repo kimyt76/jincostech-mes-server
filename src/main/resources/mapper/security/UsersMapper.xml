@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.security.mapper.UsersMapper">
+
+    <select id="getUserRoles" resultType="Role">
+        SELECT
+            C.role_id as id,
+            C.role_name as name
+        FROM users A
+        left join user_roles B on B.user_id = A.user_id
+        left join roles C on B.role_id = C.role_id
+        WHERE A.user_id = #{userId}
+    </select>
+
+    <select id="getUserRoleVos" resultType="RoleVo">
+        SELECT
+            C.role_id as role_id,
+            C.role_name as role_name
+        FROM users A
+        left join user_roles B on B.user_id = A.user_id
+        left join roles C on B.role_id = C.role_id
+        WHERE A.user_id = #{userId}
+    </select>
+
+    <insert id="insertUserMenus" parameterType="string">
+        insert into user_program
+        select
+            #{userId} as user_id
+             , program_cd
+             , 'N' as read_yn
+             , 'N' as write_yn
+             , null as memo
+             , reg_id
+             , getdate() as reg_time
+             , upd_id
+             , getdate() as upd_time
+        from user_program
+        where user_id = '전태민'
+    </insert>
+
+</mapper>

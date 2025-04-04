@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatTranItemMapper">
+
+        <select id="getMobileItemList" resultType="MatTranMobileItem">
+                select
+                    A.item_cd
+                    , A.item_name
+                    , A.qty
+                    , B.mat_tran_type_name
+                    , tran_no
+                from mat_tran_item_view A
+                left outer join mat_tran_view B on A.mat_tran_id = B.mat_tran_id
+                where test_no = #{testNo}
+                order by tran_no asc
+        </select>
+
+        <select id="getMatTranSearchHistory" resultType="MatTranSearchHistory">
+                select
+                    tran_date
+                    , tran_no
+                    , tran_cd
+                    , mat_tran_type_name
+                    , src_storage_name
+                    , dest_storage_name
+                    , qty
+                    , B.memo as item_memo
+                from mat_tran_item A
+                left outer join mat_tran_view B on A.mat_tran_id = B.mat_tran_id
+                where test_no = #{testNo}
+                order by tran_no asc
+        </select>
+
+        <select id="getMatTranHistory" resultType="MatTranSearchHistory">
+                select
+                    tran_date
+                    , tran_no
+                    , A.item_cd
+                    , A.item_name
+                    , test_no
+                    , lot_no
+                    , tran_cd
+                    , mat_tran_type_name
+                    , src_storage_name
+                    , dest_storage_name
+                    , qty
+                    , B.memo as item_memo
+                from mat_tran_item_view A
+                left outer join mat_tran_view B on A.mat_tran_id = B.mat_tran_id
+                where tran_cd = #{ tranCd }
+                and tran_date = #{ tranDate }
+                order by tran_no desc
+        </select>
+
+</mapper>

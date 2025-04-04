@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.work.mapper.MatUseMapper">
+
+    <update id="updateProdIngTime" parameterType="String">
+        update prod_ing
+        set
+        start_datetime = B.start_datetime,
+        end_datetime = B.end_datetime
+        from  prod_ing A, (
+            select
+                work_order_item_id,
+                prod_state,
+                min(prod_datetime) as start_datetime,
+                max(prod_datetime) as end_datetime
+            from mat_use
+            where work_order_item_id = #{workOrderItemId}
+            and prod_yn = 'Y'
+            group by work_order_item_id, prod_state
+            ) as B
+        where A.work_order_item_id = B.work_order_item_id
+        and A.prod_state = B.prod_state
+    </update>
+
+</mapper>

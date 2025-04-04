@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatPointStockMapper">
+
+    <select id="getLastStockDate" resultType="java.time.LocalDate">
+        SELECT
+        isnull(max(stock_date), CONVERT (DATE, '2020-08-01'))
+        FROM mat_point_stock
+        WHERE stock_date &lt; #{stockDate}
+          AND storage_cd = #{storageCd}
+    </select>
+
+    <select id="getLastStockIdAndDate" resultType="MatPointStockLast">
+        SELECT
+            max(mat_point_stock_id) as mat_point_stock_id,
+            max(stock_date) as stock_date
+        FROM (
+            SELECT
+                '0' as mat_point_stock_id,
+                CONVERT (DATE, '2020-08-01') as stock_date
+            UNION ALL
+            SELECT
+                mat_point_stock_id,
+                stock_date
+            FROM mat_point_stock
+            WHERE stock_date  &lt;= CONVERT (DATE, #{calcDate})
+              AND storage_cd = #{storageCd}
+            ) as A
+    </select>
+
+    <select id="getPointStockItemList" resultType="MatPointStockItem">
+        SELECT
+            storage_cd,
+            max(item_cd) as item_cd,
+            max(item_type_cd) as item_type_cd,
+            test_no,
+            max(area_cd) as area_cd,
+            max(lot_no) as lot_no,
+            sum(stock_qty) as stock_qty
+        FROM (
+            -- 시점재고
+            SELECT
+                area_cd, storage_cd,  item_cd, item_type_cd, item_name, lot_no, test_no, stock_qty
+            FROM mat_point_stock_item_view
+            WHERE mat_point_stock_id = #{matPointStockId}
+            UNION ALL
+            -- 자재거래 소스창고 기준
+            SELECT
+                A.area_cd,
+                src_storage_cd as storage_cd,
+                B.item_cd,
+                B.item_type_cd,
+                B.item_name,
+                B.lot_no,
+                B.test_no,
+                case tran_cd
+                when 'A' then 1
+                when 'B' then 1
+                when 'C' then 1
+                when 'E' then -1
+                when 'F' then -1
+                when 'G' then -1
+                when 'J' then -1
+                when 'K' then 1
+                when 'L' then -1
+                when 'T' then -1
+                when 'S' then 1
+                when 'U' then 1
+                when 'Q' then -1
+                else 1
+                end * qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{stockDate}
+              AND A.tran_date &lt;= #{calcDate}
+              AND A.src_storage_cd = #{storageCd}
+              AND A.mat_tran_id = B.mat_tran_id
+            UNION ALL
+            -- 자재거래 대상창고 기준
+            SELECT
+                A.area_cd,
+                dest_storage_cd as storage_cd,
+                B.item_cd,
+                B.item_type_cd,
+                B.item_name,
+                B.lot_no,
+                B.test_no,
+                qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{stockDate}
+              AND A.tran_date &lt;= #{calcDate}
+              AND A.dest_storage_cd =  #{storageCd}
+              AND A.tran_cd in ('J','L')
+              AND A.mat_tran_id = B.mat_tran_id
+        ) as E
+        GROUP BY storage_cd, test_no
+    </select>
+
+    <select id="getPointStockItemPage" resultType="MatPointStockRead">
+        SELECT
+            E.storage_cd,
+            max(F.storage_name) as storage_name,
+            item_cd,
+            max(item_type_cd) as item_type_cd,
+            max(E.item_name) as item_name,
+            <if test="ps.displayType.equals('IL')">
+                test_no, max(lot_no) as lot_no,
+            </if>
+            max(E.area_cd) as area_cd,
+            sum(stock_qty) as stock_qty
+        FROM (
+            -- 시점재고
+            SELECT
+                area_cd, storage_cd,  item_cd, item_type_cd, item_name,
+                <if test="ps.displayType.equals('IL')">
+                lot_no, test_no,
+                </if>
+                stock_qty
+            FROM mat_point_stock_item_view
+            WHERE mat_point_stock_id = #{ps.matPointStockId}
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND item_cd like '${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND item_name like '${ps.itemName}%'
+            </if>
+            UNION ALL
+            -- 자재거래 소스창고 기준
+            SELECT
+                A.area_cd,
+                src_storage_cd as storage_cd,
+                B.item_cd,
+                B.item_type_cd,
+                B.item_name,
+                <if test="ps.displayType.equals('IL')">
+                B.lot_no,
+                B.test_no,
+                </if>
+                case tran_cd
+                when 'A' then 1
+                when 'B' then 1
+                when 'C' then 1
+                when 'E' then -1
+                when 'F' then -1
+                when 'G' then -1
+                when 'J' then -1
+                when 'K' then 1
+                when 'L' then -1
+                when 'T' then -1
+                when 'S' then 1
+                when 'U' then 1
+                when 'Q' then -1
+                else 1
+                end * qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{ps.stockDate}
+              AND A.tran_date &lt;= #{ps.calcDate}
+              <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND B.item_cd like '${ps.itemCd}%'
+              </if>
+              <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND B.item_name like '${ps.itemName}%'
+              </if>
+              <choose>
+              <when test="ps.storageCd!=null and !ps.storageCd.equals('')">
+                AND A.src_storage_cd =  #{ps.storageCd}
+              </when>
+              <when test="ps.storageCd==null or ps.storageCd.equals('')">
+                AND A.src_storage_cd in ('T001','T101')
+              </when>
+              </choose>
+              AND A.mat_tran_id = B.mat_tran_id
+            UNION ALL
+            -- 자재거래 대상창고 기준
+            SELECT
+                A.area_cd,
+                dest_storage_cd as storage_cd,
+                B.item_cd,
+                B.item_type_cd,
+                B.item_name,
+                <if test="ps.displayType.equals('IL')">
+                B.lot_no,
+                B.test_no,
+                </if>
+                qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{ps.stockDate}
+              AND A.tran_date &lt;= #{ps.calcDate}
+              <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+              AND B.item_cd like '${ps.itemCd}%'
+              </if>
+              <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND B.item_name like '${ps.itemName}%'
+              </if>
+              <choose>
+              <when test="ps.storageCd!=null and !ps.storageCd.equals('')">
+                  AND A.dest_storage_cd =  #{ps.storageCd}
+              </when>
+              <when test="ps.storageCd==null or ps.storageCd.equals('')">
+                  AND A.dest_storage_cd in ('T001','T101')
+              </when>
+              </choose>
+              AND A.tran_cd in ('J','L')
+              AND A.mat_tran_id = B.mat_tran_id
+        ) as E , storage F
+        WHERE E.storage_cd = F.storage_cd
+        GROUP BY E.storage_cd, E.item_cd
+        <if test="ps.displayType.equals('IL')">
+        , E.test_no
+        </if>
+    </select>
+
+</mapper>

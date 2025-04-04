@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatStockRealMapper">
+
+    <select id="getNextSeq" resultType="Integer">
+        SELECT isnull(max(ser_no),0) + 1
+        FROM mat_stock_real
+        WHERE stock_date = #{stockDate}
+    </select>
+
+</mapper>

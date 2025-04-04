@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatOrderItemMapper">
+
+    <select id="getMatOrderTranItemSum" resultType="MatOrderTranItemSum">
+        select
+        C.item_cd,
+        max(C.item_name) as item_name,
+        max(C.order_qty) as order_qty,
+        isnull(sum(D.qty),0) as tran_qty
+        from (
+        select
+            B.*
+        from mat_order A, mat_order_item B
+        where A.mat_order_id = #{matOrderId}
+        and A.mat_order_id = B.mat_order_id) as C
+        left outer join
+        (select
+            B.*
+        from mat_tran A, mat_tran_item B
+        where A.mat_order_id = #{matOrderId}
+        and A.mat_tran_id = B.mat_tran_id) as D on C.item_cd = D.item_cd
+        group by C.item_cd
+    </select>
+
+    <!--    mat order item id end update -->
+    <update id="updateOrderItemEndYn" >
+        update mat_order_item
+        set    item_end_yn = #{itemEndYn}
+        where  mat_order_item_id = #{id}
+    </update>
+
+    <select id="getItemEndYnInfo" resultType="hashmap">
+        select case when a.cnt = a.cnt2 then 'Y'
+                    else 'N' end endYn
+             ,a.mat_order_id as matOrderId
+        from  (
+                  select count(*) cnt
+                       ,mat_order_id
+                       ,(select count(*) from mat_order_item x where x.mat_order_id = a.mat_order_id and item_end_yn ='Y') cnt2
+                  from  mat_order_item  a
+                  where  mat_order_id = (
+                      select mat_order_id
+                      from   mat_order_item
+                      where  mat_order_item_id = #{id}
+                  )
+                  group by mat_order_id
+              ) a
+    </select>
+
+    <select id="getMatOrderItemList" parameterType="String" resultType="MatOrderItemInfoVo">
+        select b.item_cd as itemCd
+             ,b.item_name as itemName
+             ,c.area_name as areaName
+             ,d.customer_name as customerName
+             ,a.order_date as orderDate
+             ,a.delivery_date as deliveryDate
+             ,b.order_qty as orderQty
+             ,b.spec
+             ,b.price
+             ,b.supply_amt as supplyAmt
+             ,b.vat
+             ,a.member_cd as memberCd
+             ,a.area_cd as areaCd
+             ,a.customer_cd as customerCd
+        from  mat_order a
+                  inner join mat_order_item b
+                             on b.mat_order_id = a.mat_order_id
+                  inner join area c
+                             on c.area_cd = a.area_cd
+                  left outer join customer d
+                             on d.customer_cd = a.customer_cd
+        where b.item_cd = #{id}
+          and   a.end_yn in ('N')
+    </select>
+</mapper>

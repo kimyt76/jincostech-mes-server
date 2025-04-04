@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.work.mapper.MatUseEtcViewMapper">
+
+    <select id="getMatSubList" resultType="MatSubItem">
+        declare @workOrderItemId nvarchar(20) = #{workOrderItemId}
+        select
+            A.item_cd
+             , A.item_name
+             , isnull(total_qty_sum, 0) as amt
+             , isnull(C.in_price, 0) as price
+        from mat_use_etc_view A
+                 join work_order_item_view B on A.work_order_item_id = B.work_order_item_id
+                 join item_master C on A.item_cd = C.item_cd
+        where work_order_batch_id = (
+            select work_order_batch_id
+            from work_order_item_view
+            where work_order_item_id = @workOrderItemId)
+          and B.process_cd > 'PRC002'
+          and C.item_type_cd = 'M2'
+        order by A.item_cd
+    </select>
+
+    <select id="getPdrMatSubByBom" resultType="PdrMatSubView">
+        declare @pdrSellId nvarchar(20) = #{pdrSellId}
+        select
+            A.pdr_mat_sub_id
+             , A.pdr_sell_id
+             , A.pdr_master_id
+             , A.display_order
+             , B.item_cd
+             , B.item_name
+             , B.amt
+             , B.price
+             , B.m2_cost
+        from pdr_mat_sub_view_template A
+                 left outer join (
+            select
+                row_number() over(order by A.item_cd) as display_order
+                 , A.item_cd
+                 , B.item_name
+                 , 0 as amt
+                 , isnull(B.in_price, 0) as price
+                 , 0 as m2_cost
+            from goods_bom_item A
+                     join item_master B on A.item_cd = B.item_cd
+            where goods_bom_id in (
+                select goods_bom_id from goods_bom
+                where item_cd = (select item_cd from pdr_sell where pdr_sell_id = @pdrSellId)
+                  and default_yn = 'Y'
+            )
+              and item_type_cd = 'M2'
+        ) B on A.display_order = B.display_order
+    </select>
+
+</mapper>

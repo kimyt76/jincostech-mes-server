@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.work.mapper.WorkOrderItemMapper">
+
+    <select id="getItemQtyList" resultType="ReqItemQty">
+        select
+            req_item_cd as item_cd
+            , max(item_name) as item_name
+            , round(sum(req_qty), 6) as order_qty
+            , '' as memo
+        from (
+                 select
+                     work_order_item_id
+                      , A.item_cd
+                      , order_qty
+                      , B.prod_qty
+                      , B.goods_bom_id
+                      , C.item_cd as req_item_cd
+                      , C.qty
+                      , A.order_qty * C.qty / B.prod_qty as req_qty
+                      , D.item_type_cd
+                      , D.item_name
+                 from work_order_item A, goods_bom B, goods_bom_item C, item_master D
+                 where A.work_order_item_id in
+                       <foreach collection="ps.workOrderItemIdList" item="workOrderItemId" index="index" separator="," open="(" close=")">
+                           #{workOrderItemId}
+                       </foreach>
+                   and A.item_cd = B.item_cd
+                   and B.goods_bom_id = C.goods_bom_id
+                   and B.default_yn = 'Y'
+                   and C.item_cd = D.item_cd
+                   and D.item_type_cd IN ('M2', 'M7')
+             ) D
+        group by req_item_cd
+    </select>
+
+    <select id="getProdPerformance" resultType="map">
+        select
+            max(upper_code) as prod_lg_type_cd
+             , Z.code as prod_md_type_cd
+             , max(upper_code_name) as prod_lg_type_name
+             , max(code_name) as prod_md_type_name
+             , sum(case when month_str = '01' then prod_qty else 0 end) as sum01
+             , sum(case when month_str = '02' then prod_qty else 0 end) as sum02
+             , sum(case when month_str = '03' then prod_qty else 0 end) as sum03
+             , sum(case when month_str = '04' then prod_qty else 0 end) as sum04
+             , sum(case when month_str = '05' then prod_qty else 0 end) as sum05
+             , sum(case when month_str = '06' then prod_qty else 0 end) as sum06
+             , sum(case when month_str = '07' then prod_qty else 0 end) as sum07
+             , sum(case when month_str = '08' then prod_qty else 0 end) as sum08
+             , sum(case when month_str = '09' then prod_qty else 0 end) as sum09
+             , sum(case when month_str = '10' then prod_qty else 0 end) as sum10
+             , sum(case when month_str = '11' then prod_qty else 0 end) as sum11
+             , sum(case when month_str = '12' then prod_qty else 0 end) as sum12
+             , isnull(sum(prod_qty), 0) as sum_total
+             , cast(isnull(avg(case when month_str = '01' then yield_rate else null end), 0) as numeric(5,2)) as avg01
+             , cast(isnull(avg(case when month_str = '02' then yield_rate else null end), 0) as numeric(5,2)) as avg02
+             , cast(isnull(avg(case when month_str = '03' then yield_rate else null end), 0) as numeric(5,2)) as avg03
+             , cast(isnull(avg(case when month_str = '04' then yield_rate else null end), 0) as numeric(5,2)) as avg04
+             , cast(isnull(avg(case when month_str = '05' then yield_rate else null end), 0) as numeric(5,2)) as avg05
+             , cast(isnull(avg(case when month_str = '06' then yield_rate else null end), 0) as numeric(5,2)) as avg06
+             , cast(isnull(avg(case when month_str = '07' then yield_rate else null end), 0) as numeric(5,2)) as avg07
+             , cast(isnull(avg(case when month_str = '08' then yield_rate else null end), 0) as numeric(5,2)) as avg08
+             , cast(isnull(avg(case when month_str = '09' then yield_rate else null end), 0) as numeric(5,2)) as avg09
+             , cast(isnull(avg(case when month_str = '10' then yield_rate else null end), 0) as numeric(5,2)) as avg10
+             , cast(isnull(avg(case when month_str = '11' then yield_rate else null end), 0) as numeric(5,2)) as avg11
+             , cast(isnull(avg(case when month_str = '12' then yield_rate else null end), 0) as numeric(5,2)) as avg12
+             , cast(isnull(avg(yield_rate), 0) as numeric(5,2)) as avg_total
+        from (
+                 select
+                     B.code as upper_code
+                      , B.code_name as upper_code_name
+                      , A.code
+                      , A.code_name
+                      , A.display_order
+                 from common_code A
+                          join (select code, code_name, display_order from common_code where code_type = 'PROD_LG_TYPE') B on A.opt1 = B.code
+                 where A.code_type = 'PROD_MD_TYPE'
+                   and B.code != 'PT5'
+             ) Z
+                 left outer join (
+            select
+                B.item_cd
+                 , item_name
+                 , B.prod_lg_type
+                 , B.prod_md_type
+                 , convert(int, prod_qty) as prod_qty
+                 , yield_rate
+                 , prod_date
+                 , RIGHT(CONVERT(CHAR(6), prod_date, 112), 2) as month_str
+            from work_order_item A
+                     join item_master B on A.item_cd = B.item_cd
+            where A.work_order_item_status = '52'
+              and prod_date between #{startDate} and #{endDate}
+        ) X on Z.code = X.prod_md_type
+        group by Z.code
+    </select>
+
+    <select id="getProdPerformanceByCustomer" resultType="map">
+        select
+            customer_cd
+             , max(customer_name) as customer_name
+             , sum(case when prod_md_type = 'PT001' then prod_qty else 0 end) as qty1
+             , sum(case when prod_md_type = 'PT002' then prod_qty else 0 end) as qty2
+             , sum(case when prod_md_type = 'PT003' then prod_qty else 0 end) as qty3
+             , sum(case when prod_md_type = 'PT004' then prod_qty else 0 end) as qty4
+             , sum(case when prod_md_type = 'PT005' then prod_qty else 0 end) as qty5
+             , sum(case when prod_md_type = 'PT006' then prod_qty else 0 end) as qty6
+             , sum(case when prod_md_type = 'PT007' then prod_qty else 0 end) as qty7
+             , sum(case when prod_md_type = 'PT008' then prod_qty else 0 end) as qty8
+             , sum(case when prod_md_type = 'PT009' then prod_qty else 0 end) as qty9
+             , sum(case when prod_md_type = 'PT010' then prod_qty else 0 end) as qty10
+             , sum(case when prod_md_type = 'PT011' then prod_qty else 0 end) as qty11
+             , sum(case when prod_md_type not in (
+                                                  'PT001',
+                                                  'PT002',
+                                                  'PT003',
+                                                  'PT004',
+                                                  'PT005',
+                                                  'PT006',
+                                                  'PT007',
+                                                  'PT008',
+                                                  'PT009',
+                                                  'PT010',
+                                                  'PT011'
+            ) then prod_qty else 0 end) as etc_qty
+             , sum(prod_qty) as total_qty
+        from (
+                 select
+                     B.item_cd
+                      , B.item_name
+                      , isnull(case when A.customer_cd = '' then null else A.customer_cd end, '9999999999999') as customer_cd
+                      , isnull(A.customer_name, 'Z기타') as customer_name
+                      , isnull(B.prod_md_type, 'ETC') as prod_md_type
+                      , isnull(D.code_name, '기타') as md_type_name
+                      , D.display_order as md_order
+                      , convert(int, prod_qty) as prod_qty
+                 from work_order_item_view A
+                          join item_master B on A.item_cd = B.item_cd
+                          left outer join (select code, code_name, display_order from common_code where code_type = 'PROD_LG_TYPE') C on B.prod_lg_type = C.code
+                          left outer join (select code, code_name, display_order from common_code where code_type = 'PROD_MD_TYPE') D on B.prod_md_type = D.code
+                 where A.work_order_item_status = '52'
+                   and prod_date between #{startDate} and #{endDate}
+             ) Z
+        group by customer_cd
+        order by customer_name
+    </select>
+
+    <select id="getEquipRunValues" resultType="EquipRunTagValue">
+        select
+            tag_value_id
+             , tag_cd
+             , measure_value
+             , string_value
+             , measure_time
+             , datediff(second, lag(measure_time) over(order by measure_time), measure_time) as diff
+        from tag_value
+        where tag_cd = #{tagCd}
+          and measure_time between #{startTime} and #{endTime}
+        order by measure_time asc
+    </select>
+</mapper>

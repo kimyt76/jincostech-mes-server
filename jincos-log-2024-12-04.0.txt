@@ -1,0 +1,41 @@
+[INFO ] 14:24:21.983 com.daehanins.mes.MesApplication - Starting MesApplication on DESKTOP-10HTBDA with PID 6804 (C:\mes\prd\server\jincostech-mes-server_prd\target\classes started by kyt in C:\mes\prd\server\jincostech-mes-server_prd)
+[INFO ] 14:24:21.985 com.daehanins.mes.MesApplication - The following profiles are active: dev
+[INFO ] 14:24:22.017 o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+[INFO ] 14:24:22.017 o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+[INFO ] 14:24:24.586 o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port(s): 9091 (http)
+[INFO ] 14:24:24.586 o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-9091"]
+[INFO ] 14:24:24.586 o.a.catalina.core.StandardService - Starting service [Tomcat]
+[INFO ] 14:24:24.586 o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.27]
+[INFO ] 14:24:24.664 o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+[INFO ] 14:24:24.664 o.s.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 2646 ms
+[INFO ] 14:24:26.599 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+[INFO ] 14:24:26.729 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+[INFO ] 14:24:29.258 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'clientInboundChannelExecutor'
+[INFO ] 14:24:29.258 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'clientOutboundChannelExecutor'
+[INFO ] 14:24:29.278 o.s.s.c.ThreadPoolTaskScheduler - Initializing ExecutorService 'messageBrokerTaskScheduler'
+[INFO ] 14:24:29.312 o.s.s.web.DefaultSecurityFilterChain - Creating filter chain: any request, [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@366006be, org.springframework.security.web.context.SecurityContextPersistenceFilter@22d5657c, org.springframework.security.web.header.HeaderWriterFilter@2f7c4ddb, org.springframework.web.filter.CorsFilter@35a85673, org.springframework.security.web.authentication.logout.LogoutFilter@5f5b9cbe, com.daehanins.mes.biz.security.jwt.AuthTokenFilter@31192c50, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@7abef9cf, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@8d147f7, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@63d84fa, org.springframework.security.web.session.SessionManagementFilter@5bb5e87a, org.springframework.security.web.access.ExceptionTranslationFilter@3d1c8bf4, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@4199d026]
+[INFO ] 14:24:29.375 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'brokerChannelExecutor'
+[INFO ] 14:24:29.679 o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+[INFO ] 14:24:29.726 o.s.m.s.b.SimpleBrokerMessageHandler - Starting...
+[INFO ] 14:24:29.726 o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [DefaultSubscriptionRegistry[cache[0 destination(s)], registry[0 sessions]]]]
+[INFO ] 14:24:29.726 o.s.m.s.b.SimpleBrokerMessageHandler - Started.
+[INFO ] 14:24:29.741 o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-9091"]
+[INFO ] 14:24:29.757 o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port(s): 9091 (http) with context path ''
+[INFO ] 14:24:29.757 com.daehanins.mes.MesApplication - Started MesApplication in 8.213 seconds (JVM running for 8.964)
+[INFO ] 14:25:29.392 o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 2, completed tasks = 1]
+[INFO ] 14:26:16.080 o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+[INFO ] 14:26:16.080 o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+[INFO ] 14:26:16.080 o.s.web.servlet.DispatcherServlet - Completed initialization in 0 ms
+[INFO ] 14:55:29.395 o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 18, active threads = 1, queued tasks = 2, completed tasks = 32]
+[INFO ] 15:25:29.401 o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 18, active threads = 1, queued tasks = 2, completed tasks = 64]
+[INFO ] 15:55:29.405 o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 18, active threads = 1, queued tasks = 2, completed tasks = 95]
+[INFO ] 16:25:29.409 o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 18, active threads = 1, queued tasks = 2, completed tasks = 127]
+[INFO ] 16:39:43.265 o.s.m.s.b.SimpleBrokerMessageHandler - Stopping...
+[INFO ] 16:39:43.265 o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [DefaultSubscriptionRegistry[cache[0 destination(s)], registry[0 sessions]]]]
+[INFO ] 16:39:43.265 o.s.m.s.b.SimpleBrokerMessageHandler - Stopped.
+[INFO ] 16:39:43.281 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'brokerChannelExecutor'
+[INFO ] 16:39:43.281 o.s.s.c.ThreadPoolTaskScheduler - Shutting down ExecutorService 'messageBrokerTaskScheduler'
+[INFO ] 16:39:43.281 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'clientOutboundChannelExecutor'
+[INFO ] 16:39:43.281 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'clientInboundChannelExecutor'
+[INFO ] 16:39:43.281 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+[INFO ] 16:39:43.297 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.work.mapper.GoodsBomItemMapper">
+
+    <select id="getGoodsBomItemByCostsList" resultType="GoodsBomItemByCosts">
+        select
+            A.item_cd
+            , A.item_name
+            , B.item_cd as prod_item_cd
+            , B.item_name as prod_item_name
+            , B.bom_ver
+            , sum_ratio
+            , 0 as prod_qty
+            , 0 as qty
+        from (
+            select
+                goods_bom_id
+                , max(item_cd) as item_cd
+                , max(item_name) as item_name
+                , sum(content_ratio) as sum_ratio
+            from goods_bom_item_view
+            where item_cd = #{itemCd}
+            group by goods_bom_id
+        ) A, (
+            select
+                goods_bom_id
+                , item_cd
+                , item_name
+                , bom_ver
+            from goods_bom_view
+            where bom_ver is not null
+            and default_yn = 'Y'
+            and item_cd not like 'TEST%'
+        ) B
+        where A.goods_bom_id = B.goods_bom_id
+        order by B.item_cd asc
+    </select>
+
+    <select id="getGoodsBomItemByCostsListSub" resultType="GoodsBomItemByCosts">
+        select
+            A.item_cd
+             , A.item_name
+             , B.item_cd as prod_item_cd
+             , B.item_name as prod_item_name
+             , B.prod_qty
+             , B.bom_ver
+             , qty
+             , 0 as sum_ratio
+        from (
+                 select
+                     goods_bom_id
+                      , max(item_cd) as item_cd
+                      , max(item_name) as item_name
+                      , sum(qty) as qty
+                 from goods_bom_item_view
+                 where item_cd = #{itemCd}
+                 group by goods_bom_id
+             ) A, (
+                 select
+                     goods_bom_id
+                      , item_cd
+                      , item_name
+                      , bom_ver
+                      , prod_qty
+                 from goods_bom_view
+                 where bom_ver is not null
+                   and default_yn = 'Y'
+                   and item_cd not like 'TEST%'
+             ) B
+        where A.goods_bom_id = B.goods_bom_id
+        order by B.item_cd asc
+    </select>
+
+<!--    <select id="getUsageByItemList" resultType="UsageByItems">-->
+<!--        select-->
+<!--        work_order_item_id-->
+<!--        , prod_date-->
+<!--        , prod_no-->
+<!--        , prod_item_cd-->
+<!--        , prod_item_name-->
+<!--        , unit-->
+<!--        , order_qty-->
+<!--        , C.item_cd-->
+<!--        , C.item_name-->
+<!--        , spec-->
+<!--        , req_qty-->
+<!--        , weigh_qty-->
+<!--        from (-->
+<!--        select-->
+<!--        A.work_order_item_id-->
+<!--        , max(A.prod_date) prod_date-->
+<!--        , max(A.prod_no) prod_no-->
+<!--        , max(A.item_cd) prod_item_cd-->
+<!--        , max(A.item_name) prod_item_name-->
+<!--        , max(order_qty) order_qty-->
+<!--        , B.item_cd-->
+<!--        , max(B.item_name) item_name-->
+<!--        , sum(req_qty) req_qty-->
+<!--        , sum(weigh_qty) weigh_qty-->
+<!--        from work_order_item_view A, mat_use_view B-->
+<!--        where A.work_order_item_id = B.work_order_item_id-->
+<!--        and process_cd = 'PRC001'-->
+<!--        and work_order_item_status = '12'-->
+<!--        and prod_date &gt;= #{startDate}-->
+<!--        and prod_date &lt;= #{endDate}-->
+<!--        and B.item_cd != 'JRW00215'-->
+<!--        and B.item_cd != 'JRMSC00011'-->
+<!--        group by A.work_order_item_id, B.item_cd-->
+<!--        ) C, item_master D-->
+<!--        where C.item_cd = D.item_cd-->
+<!--        order by prod_date, prod_item_cd, prod_no, C.item_cd-->
+<!--    </select>-->
+
+    <select id="getUsageByItemList" resultType="UsageByItems">
+        declare @startDate nvarchar(20) = #{startDate}
+        declare @endDate nvarchar(20) = #{endDate}
+        declare @processCd nvarchar(20) = #{processCd}
+
+        ;with work_order_item_list as (
+            select
+                prod_date
+                 , prod_no
+                 , lot_no
+                 , item_cd as prod_item_cd
+                 , item_name as prod_item_name
+                 , tran_id
+                 , order_qty
+                 , prod_qty
+            from work_order_item_view
+            where prod_date between @startDate and @endDate
+              and tran_yn = 'Y'
+              and process_cd in (
+                                 case when @processCd = 'ALL' or @processCd = 'PRC001' then 'PRC001'
+                                      else '' end,
+                                 case when @processCd = 'ALL' or @processCd = 'PRC003' then 'PRC003'
+                                      else '' end,
+                                 case when @processCd = 'ALL' or @processCd = 'PRC004' then 'PRC004'
+                                      else '' end,
+                                 case when @processCd = 'ALL' or @processCd = 'PRC005' then 'PRC005'
+                                      else '' end
+                )
+        )
+
+         select
+             prod_date
+              , prod_no
+              , lot_no
+              , order_qty --지시량
+              --, prod_qty
+              , prod_item_cd
+              , prod_item_name
+              , C.unit as prod_unit
+              , B.item_cd
+              , D.item_name
+              , qty
+              , D.unit
+              , D.spec
+         from work_order_item_list A
+                  join (
+             select mat_tran_id, item_cd, max(item_name) as item_name, sum(qty) as qty from mat_tran_item
+             where mat_tran_id in  (
+                 select tran_id from work_order_item_list
+             )
+               and item_type_cd in ('M1', 'M2')
+             group by mat_tran_id, item_cd
+         ) B on A.tran_id = B.mat_tran_id
+                  left outer join item_master C on A.prod_item_cd = C.item_cd
+                  left outer join item_master D on B.item_cd = D.item_cd
+         order by prod_date desc, prod_item_cd asc, prod_no desc, item_cd asc
+    </select>
+
+    <select id="getConsumptionList" resultType="ConsumptionItem">
+        with storge_tb as (
+            select a.date_rank
+                , a.mat_stock_id
+                , a.storage_cd
+                , a.stock_date
+            from  (
+                select   RANK() OVER(PARTITION BY storage_cd ORDER BY STOCK_DATE DESC, mat_stock_id DESC) AS date_rank
+                        ,mat_stock_id
+                        ,storage_cd
+                        ,stock_date
+                from   mat_stock
+                where stock_state > 3
+                and   stock_date &lt;= CONVERT(CHAR(10), getDate(),23)
+                and   storage_cd in (
+                        select storage_cd from storage where a_yn ='Y'
+                    )
+                ) a
+            where  1=1
+            and  a.date_rank = 1
+        ),
+        stock_qty as (
+            select a.item_cd ,sum(a.stock_qty) as total_qty
+            from  (
+                    select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WA001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WA101' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WE001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WE002' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS101' and c.item_type_cd ='M1'
+                and  a.tran_date between (select stock_date from storge_tb where storage_cd = a.src_storage_cd) and CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, dbo.src_storage_tran_qty(tran_cd, b.qty) as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS102' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.src_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd,  b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.dest_storage_cd = 'WA001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WA101' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WE001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WE002' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS001' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS101' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.qty as stock_qty
+                from mat_tran a inner join mat_tran_item b on b.mat_tran_id = a.mat_tran_id inner join item_master c on c.item_cd = b.item_cd
+                where a.src_storage_cd = 'WS102' and c.item_type_cd ='M1'
+                and  a.tran_date  &gt; (select stock_date from storge_tb where storage_cd = a.dest_storage_cd)
+                and  a.tran_date  &lt;= CONVERT(CHAR(10), getDate(),23)
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WA001' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WA101' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WE001' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WE002' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WS001' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WS101' and b.real_qty > 0
+                union all
+                select b.item_cd, b.real_qty as stock_qty from mat_stock a inner join mat_stock_item b on b.mat_stock_id = a.mat_stock_id  inner join item_master c on c.item_cd = b.item_cd and c.item_type_cd = 'M1'
+                where a.mat_stock_id = (select mat_stock_id from storge_tb where  storage_cd = a.storage_cd) and  a.storage_cd = 'WS102' and b.real_qty > 0
+            ) a
+            group by a.item_cd
+        ) ,
+        goods_bom_tb as (
+            select item_cd , sum(req_qty) as req_qty
+            from (
+            <foreach collection="list" index="index" item="item" separator="union all">
+                select item_cd
+                , sum( content_ratio ) * ${item.prodQty} / 100 as req_qty
+                from goods_bom_item
+                where goods_bom_id = #{item.goodsBomId}
+                and item_cd not in ('JRW00215', 'JRMSC00011')
+                group by item_cd
+            </foreach>
+            ) A
+            group by item_cd
+        )
+
+        select   a.item_cd
+                ,(select code_name from common_code where code_type = 'ITEM_TYPE' and code = c.item_type_cd) as item_type
+                ,c.item_name
+                ,c.spec
+                ,isnull (b.total_qty, 0) as stock_qty
+                ,isnull (( select sum(y.order_qty) as mat_order_qty
+                            from mat_order x
+                                inner join mat_order_item y
+                                on x.mat_order_id = y.mat_order_id
+                            where 1=1 AND x.tran_cd = 'A' and x.end_yn ='N' and y.item_cd = a.item_cd
+                ), 0) as matOrderQty
+                ,a.req_qty
+                ,isnull(b.total_qty, 0) - a.req_qty as diff
+                ,isnull((select customer_name  from customer where customer_cd = c.purchase_customer_cd ), '') as customer_name
+                ,isnull((select code_name from common_code where code_type = 'ITEM_GRP1' and code =c.item_grp1), '') as  in_out
+                ,isnull( c.in_price, 0) as in_price
+        from    goods_bom_tb a
+            left outer join stock_qty b
+            on b.item_cd = a.item_cd
+            left outer join item_master c
+            on c.item_cd = a.item_cd
+            order by a.item_cd
+    </select>
+
+    <select id="getConsumptionSubList" resultType="ConsumptionItem">
+        select
+            B.item_cd
+            , G.code_name as item_type
+            , item_name
+            , spec
+            , isnull(total_qty, 0) as stock_qty
+            , req_qty
+            , isnull(total_qty, 0) - req_qty as diff
+            , F.customer_name
+            , isnull(E.code_name, '') as in_out
+            , in_price
+        from (
+            select
+                item_cd
+                , sum(req_qty) as req_qty
+            from (
+            <foreach collection="list" index="index" item="item" separator="union all">
+                select
+                    item_cd
+                    , sum( qty ) * ${item.prodQty}  / ${item.stdQty} as req_qty
+                from goods_bom_item
+                where goods_bom_id = #{item.goodsBomId}
+                group by item_cd
+            </foreach>
+            ) A
+            group by item_cd
+        ) B
+        left outer join (select * from tran_total_M2(CONVERT(CHAR(10), getDate(),23), 'M2')) C on B.item_cd = C.item_cd
+        join item_master D on B.item_cd = D.item_cd
+        left outer join (select code, code_name from common_code where code_type = 'ITEM_GRP1') E on D.item_grp1 = E.code
+        left outer join customer F on D.purchase_customer_cd = F.customer_cd
+        left outer join (select code, code_name from common_code where code_type = 'ITEM_TYPE') G on D.item_type_cd = G.code
+        where item_type_cd = 'M2'
+        order by B.item_cd
+    </select>
+
+</mapper>

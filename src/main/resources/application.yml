@@ -1,0 +1,72 @@
+#app
+server:
+  port: 9091
+#  port: 7071
+
+spring:
+  application:
+    name: daehan-mes
+  profiles:
+    active: dev
+  devtools:
+    livereload:
+      enabled: true
+  datasource:
+#    url: jdbc:sqlserver://192.168.50.236:1433;databaseName=jincostech_adv #    Jincostech Server 내부망
+    url: jdbc:sqlserver://119.195.189.141:1433;databaseName=jincostech_adv #    Jincostech Server 고정IP
+    username: jincos_mms
+    password: dx7777
+    driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  thymeleaf:
+    prefix: classpath:templates/
+    suffix: .html
+    check-template-location: true
+    mode: HTML
+    cache: false
+    template-resolver-order: 0
+  servlet:
+    multipart:
+      max-file-size: 500KB
+      max-request-size: 500KB
+
+# mybatis-plus  https://mp.baomidou.com/config/
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/*/*.xml
+  type-aliases-package: com.daehanins.mes.*.*.entity; com.daehanins.mes.*.*.vo
+#  type-enums-package: com.daehanins.mes.*.*.enums
+  global-config:
+    db-config:
+      id-type: id_worker
+      capital-mode: true
+      insert-strategy: not_null
+      update-strategy: not_null
+      select-strategy: not_null
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    # print SQL log
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+app:
+  jwt:
+    secret: daehanJwtSecretKey
+    expirationMs: 172800000
+#    expirationMs: 100
+#  mail:
+#    host: smtp.cafe24.com
+#    port: 587
+#    username: purchase@jincostech.com
+    #    20220319 패스워드 변경 test1425* -> jct7118*
+    #    20220718 패스워드 변경 jct7118*  -> mes9090*
+#    password: mes9090*
+#    security: true
+  webclient:
+#    baseUrl: http://localhost:8081
+    baseUrl: https://oapiCD.ecounterp.com/OAPI/V2
+  logs:
+    fixedRate: false
+#    save: false
+#    send: false
+    save: true
+    send: true

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatOrderMapper">
+
+    <select id="getNextSeq" resultType="Integer">
+        SELECT isnull(max(ser_no),0) + 1
+        FROM mat_order
+        WHERE order_date = #{orderDate}
+          AND tran_cd = #{tranCd};
+    </select>
+
+
+    <select id="matOrderStateList">
+        -- 발주 현황
+        select
+            A.mat_order_id,
+            A.tran_cd,
+            A.order_date,
+            A.ser_no,
+            A.order_state,
+            A.delivery_date,
+            A.area_cd,
+            A.src_storage_cd,
+            A.customer_cd,
+            A.member_cd,
+            B.mat_order_item_id,
+            B.item_cd,
+            B.spec,
+            B.unit,
+            B.order_qty,
+            B.price,
+            B.supply_amt,
+            B.vat,
+            C.tran_date,
+            C.sum_qty,
+            A.end_yn,
+            case when B.order_qty &lt;= C.sum_qty then 'Y' else 'N' end as reg_yn
+        from mat_order A, mat_order_item B, mat_tran_order_item_view C
+        where A.tran_cd = 'A'
+            and A.mat_order_id = B.mat_order_id
+            and A.mat_order_id = C.mat_order_id
+            and B.item_cd = c.item_cd
+            and A.order_date &gt;= '20200601' and A.order_date &lt;= '20200710'
+    </select>
+
+</mapper>

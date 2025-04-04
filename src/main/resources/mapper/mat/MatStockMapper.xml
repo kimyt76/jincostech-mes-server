@@ -1,0 +1,881 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.daehanins.mes.biz.mat.mapper.MatStockMapper">
+
+    <select id="initMatStockItem" resultType="matStockItem">
+        select * from get_stock_take_list(#{stockDate}, #{storageCd})
+        order by item_cd, test_no
+    </select>
+
+    <select id="getLedgerStockList" resultType="LedgerStockItem">
+        -- 창고별 장부재고 생성 :  result_qty
+        select
+        storage_cd,
+        item_cd,
+        test_no,
+        max(lot_no) as lot_no,
+        sum(base_qty) as base_qty,
+        sum(in_qty) as in_qty,
+        sum(out_qty) as out_qty,
+        sum(use_qty) as use_qty,
+        sum(adj_qty) as adj_qty,
+        sum(base_qty) + sum(in_qty) - sum(out_qty) - sum(use_qty) + sum(adj_qty) as result_qty
+        from (
+        -- 시점재고
+        select
+        storage_cd,
+        item_cd, lot_no, test_no,
+        stock_qty as base_qty,
+        0 as in_qty,
+        0 as out_qty,
+        0 as use_qty,
+        0 as adj_qty
+        from mat_point_stock_item
+        where stock_date = #{pointStockDate}	-- 최근재고생성일자
+        and storage_cd = #{storageCd}	        -- 창고코드
+        UNION ALL
+        -- 자재거래 src_storage_cd
+        select
+        src_storage_cd as storage_cd,
+        item_cd, lot_no, test_no,
+        0 as base_qty,
+        case when A.tran_cd in ('A','B','C') then qty else 0 end as in_qty,
+        case when A.tran_cd in ('E','F','G','J','L') then qty else 0 end as out_qty,
+        case when A.tran_cd in ('T','Q') then qty else 0 end as use_qty,
+        case when A.tran_cd in ('U','S') then qty else 0 end as adj_qty
+        from mat_tran A
+        left join mat_tran_item B on B.mat_tran_id = A.mat_tran_id
+        where A.tran_date > #{pointStockDate} and A.tran_date &lt;= #{stdStockDate}   -- 최근재고생성일자  재고기준일자
+        and A.src_storage_cd = #{storageCd}    -- 창고코드
+        UNION ALL
+        -- 자재거래 dest_storage_cd
+        select
+        dest_storage_cd as storage_cd,
+        item_cd, lot_no, test_no,
+        0 as base_qty,
+        case when A.tran_cd in ('J','L') then qty else 0 end as in_qty,
+        0 as out_qty,
+        0 as use_qty,
+        0 as adj_qty
+        from mat_tran A
+        left join mat_tran_item B on B.mat_tran_id = A.mat_tran_id
+        where A.tran_date > #{pointStockDate} and A.tran_date &lt;= #{stdStockDate}  	-- 최근재고생성일자  재고기준일자
+        and A.dest_storage_cd = #{storageCd}   -- 창고코드
+        and tran_cd in ('J','L')
+        ) mat_tran_all
+        where item_cd is not null
+        group by storage_cd, item_cd, test_no
+    </select>
+
+<!--    <select id="getMatchStockRealItemList"  resultType="MatchStockRealItem">-->
+<!--        select-->
+<!--            mat_stock_item_id,-->
+<!--            C.test_no,-->
+<!--            sum(D.real_qty) as real_qty,-->
+<!--            max(D.memo) as memo-->
+<!--        from (-->
+<!--            select-->
+<!--                mat_stock_item_id,-->
+<!--                item_cd,-->
+<!--                lot_no,-->
+<!--                test_no-->
+<!--            from mat_stock_item-->
+<!--            where mat_stock_id = #{matStockId}) C ,-->
+<!--            (select-->
+<!--                mat_stock_real_item_id,-->
+<!--                item_cd, lot_no, test_no,-->
+<!--                real_qty,-->
+<!--                memo-->
+<!--            from mat_stock_real A-->
+<!--            left join mat_stock_real_item B on B.mat_stock_real_id = A.mat_stock_real_id-->
+<!--            where A.mat_stock_id = #{matStockId}) D-->
+<!--        where C.test_no = D.test_no-->
+<!--		group by mat_stock_item_id, C.test_no-->
+<!--    </select>-->
+
+    <select id="getMatchStockRealItemList"  resultType="MatchStockRealItem">
+        select
+             max(mat_stock_item_id) as mat_stock_item_id,
+             max(mat_stock_real_item_id) as mat_stock_real_item_id,
+             item_cd,  -- max(item_cd) as item_cd,
+             max(lot_no) as lot_no,
+             test_no,
+             sum(account_qty) as account_qty,
+			 case when sum(is_real) > 0 then  0 else sum(account_qty) end as check_qty,
+			 case when sum(is_real) > 0 then  sum(real_qty) else 0 end as real_qty,
+             max(memo) as memo,
+			 case when sum(is_real) > 0 then 'Y' else 'N' end as is_real
+        from
+            (select
+                mat_stock_item_id, '' as mat_stock_real_item_id,
+                item_cd,
+                lot_no,
+                test_no,
+				account_qty,
+                0 as real_qty,
+                '' as memo,
+				0 as is_real
+            from mat_stock_item
+            where mat_stock_id = #{matStockId}
+            UNION ALL
+            select
+                '' as mat_stock_item_id, mat_stock_real_item_id,
+                item_cd, lot_no, test_no,
+				0 as account_qty,
+                real_qty,
+                memo,
+				1 as is_real
+            from mat_stock_real A
+            left join mat_stock_real_item B on B.mat_stock_real_id = A.mat_stock_real_id
+            where A.mat_stock_id = #{matStockId}) as C
+        where item_cd is not null
+        group by C.item_cd, C.test_no
+
+    </select>
+
+    <select id="getAdjustStockItemList" resultType="AdjustStockItem">
+        select
+            *
+        from (
+            select
+            mat_stock_item_id,
+            B.item_cd,
+            C.item_name,
+            lot_no,
+            test_no,
+            (check_qty + real_qty) - account_qty as adjust_qty,
+            memo
+            from mat_stock A
+            left join mat_stock_item B on B.mat_stock_id = A.mat_stock_id
+            left join item_master C on B.item_cd = C.item_cd
+            where A.mat_stock_id = #{matStockId}) R
+        where adjust_qty != 0
+    </select>
+
+    <select id="getCurrentStockItemList" resultType="MatPointStockRead">
+        SELECT
+        E.storage_cd,
+        max(F.storage_name) as storage_name,
+        item_cd,
+        max(item_type_cd) as item_type_cd,
+        max(E.item_name) as item_name,
+        <if test="ps.displayType.equals('IL')">
+            test_no, max(lot_no) as lot_no,
+        </if>
+        max(E.area_cd) as area_cd,
+        sum(stock_qty) as stock_qty
+        FROM (
+            -- 시점재고
+            SELECT
+            area_cd, storage_cd,  item_cd, item_type_cd, item_name,
+            <if test="ps.displayType.equals('IL')">
+                lot_no, test_no,
+            </if>
+            stock_qty
+            FROM mat_point_stock_item_view
+            WHERE stock_date = #{ps.stockDate}
+              AND storage_cd = #{ps.storageCd}
+            <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+                AND item_type_cd like #{ps.itemTypeCd}
+            </if>
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND item_cd like '%${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND item_name like '%${ps.itemName}%'
+            </if>
+            UNION ALL
+            -- 자재거래 소스창고 기준
+            SELECT
+            A.area_cd,
+            src_storage_cd as storage_cd,
+            B.item_cd,
+            B.item_type_cd,
+            B.item_name,
+            <if test="ps.displayType.equals('IL')">
+                B.lot_no,
+                B.test_no,
+            </if>
+            case tran_cd
+            when 'A' then 1
+            when 'B' then 1
+            when 'C' then 1
+            when 'E' then -1
+            when 'F' then -1
+            when 'G' then -1
+            when 'J' then -1
+            when 'K' then 1
+            when 'L' then -1
+            when 'T' then -1
+            when 'S' then 1
+            when 'U' then 1
+            when 'Q' then -1
+            else 1
+            end * qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{ps.stockDate}
+            AND A.tran_date &lt;= #{ps.calcDate}
+            <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+                AND B.item_type_cd like #{ps.itemTypeCd}
+            </if>
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND B.item_cd like '%${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND B.item_name like '%${ps.itemName}%'
+            </if>
+            AND A.src_storage_cd =  #{ps.storageCd}
+            AND A.mat_tran_id = B.mat_tran_id
+            UNION ALL
+            -- 자재거래 대상창고 기준
+            SELECT
+            A.area_cd,
+            dest_storage_cd as storage_cd,
+            B.item_cd,
+            B.item_type_cd,
+            B.item_name,
+            <if test="ps.displayType.equals('IL')">
+                B.lot_no,
+                B.test_no,
+            </if>
+            qty as stock_qty
+            FROM mat_tran A, mat_tran_item B
+            WHERE A.tran_date &gt; #{ps.stockDate}
+            AND A.tran_date &lt;= #{ps.calcDate}
+            <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+                AND B.item_type_cd like #{ps.itemTypeCd}
+            </if>
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND B.item_cd like '%${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND B.item_name like '%${ps.itemName}%'
+            </if>
+            AND A.dest_storage_cd =  #{ps.storageCd}
+            AND A.tran_cd in ('J','L')
+            AND A.mat_tran_id = B.mat_tran_id
+            ) as E , storage F
+        WHERE E.storage_cd = F.storage_cd
+        GROUP BY E.storage_cd, E.item_cd
+        <if test="ps.displayType.equals('IL')">
+            , E.test_no
+        </if>
+    </select>
+
+    <select id="getCurrentItemStockList" resultType="MatSingleItemStock">
+        select * from get_item_stock(#{storageCd}, #{itemCd})
+        order by test_no desc, create_date desc
+    </select>
+
+    <select id="getCurrentStockItemList2" resultType="MatPointStockRead">
+        with target_poitn_stock as (
+            select mat_point_stock_id
+                 , stock_date
+                 , area_cd
+                 , storage_cd
+            from (
+                select mat_point_stock_id
+                     , stock_date
+                    , storage_cd
+                    , area_cd
+                    , ROW_NUMBER() OVER (PARTITION BY storage_cd ORDER BY stock_date DESC) as rank_no
+                from mat_point_stock
+                where stock_date &lt;= #{ps.calcDate}
+                and proc_yn = 'Y'
+            ) T
+        where rank_no = 1
+        AND storage_cd in (
+            SELECT storage_cd FROM storage
+            <where>
+                <if test="ps.areaCd !=null and !ps.areaCd.equals('')">
+                    AND area_cd = #{ps.areaCd}
+                </if>
+                <if test="ps.itemTypeCd == 'M0'">
+                    AND f_yn = 'Y'
+                </if>
+                <if test="ps.itemTypeCd == 'M1'">
+                    AND a_yn = 'Y'
+                </if>
+                <if test="ps.itemTypeCd == 'M2'">
+                    AND b_yn = 'Y'
+                </if>
+                <if test="ps.itemTypeCd == 'M3'">
+                    AND c_yn = 'Y'
+                </if>
+                <if test="ps.itemTypeCd == 'M5'">
+                    AND d_yn = 'Y'
+                </if>
+                <if test="ps.itemTypeCd == 'M6'">
+                    AND e_yn = 'Y'
+                </if>
+            </where>
+            )
+        )
+        SELECT E.storage_cd
+             , max(F.storage_name) as storage_name
+             , E.item_cd as item_cd
+             , max(E.item_type_cd) as item_type_cd
+             , max(E.item_name) as item_name
+             , max(G.safe_stock_qty) as safe_stock_qty
+             , max(E.area_cd) as area_cd
+             , sum(stock_qty) as stock_qty
+             <if test="ps.displayType.equals('IL')">
+             , E.test_no
+             , max(E.lot_no) as lot_no
+             </if>
+        FROM (
+        -- 시점재고
+            SELECT area_cd, storage_cd,  item_cd, item_type_cd, item_name, stock_qty
+            <if test="ps.displayType.equals('IL')">
+            , lot_no, test_no
+            </if>
+            FROM mat_point_stock_item_view
+            WHERE mat_point_stock_id in (
+                select mat_point_stock_id from target_poitn_stock
+            )
+            <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+                AND item_type_cd = #{ps.itemTypeCd}
+            </if>
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND item_cd like '%${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND item_name like '%${ps.itemName}%'
+            </if>
+        UNION ALL
+        -- 자재거래 소스창고 기준
+        SELECT A.area_cd
+             , src_storage_cd as storage_cd
+             , B.item_cd
+             , B.item_type_cd
+             , B.item_name
+             , dbo.destStorageTranSigh(tran_cd, qty) as stock_qty
+             <if test="ps.displayType.equals('IL')">
+             , B.lot_no
+             , B.test_no
+             </if>
+        FROM mat_tran A, mat_tran_item B
+        WHERE A.tran_date &gt; ( select max(stock_date) from target_poitn_stock)
+        AND A.tran_date &lt;= #{ps.calcDate}
+        <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+            AND B.item_type_cd = #{ps.itemTypeCd}
+        </if>
+        <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+            AND B.item_cd like '%${ps.itemCd}%'
+        </if>
+        <if test="ps.itemName!=null and !ps.itemName.equals('')">
+            AND B.item_name like '%${ps.itemName}%'
+        </if>
+        AND A.src_storage_cd in  (
+        SELECT storage_cd
+        FROM storage
+        <where>
+            <if test="ps.areaCd !=null and !ps.areaCd.equals('')">
+                AND area_cd = #{ps.areaCd}
+            </if>
+            <if test="ps.itemTypeCd == 'M0'">
+                AND f_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M1'">
+                AND a_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M2'">
+                AND b_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M3'">
+                AND c_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M5'">
+                AND d_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M6'">
+                AND e_yn = 'Y'
+            </if>
+        </where>
+        )
+        AND A.mat_tran_id = B.mat_tran_id
+        UNION ALL
+        -- 자재거래 대상창고 기준
+        SELECT
+        A.area_cd,
+        dest_storage_cd as storage_cd,
+        B.item_cd,
+        B.item_type_cd,
+        B.item_name,
+        <if test="ps.displayType.equals('IL')">
+            B.lot_no,
+            B.test_no,
+        </if>
+        qty as stock_qty
+        FROM mat_tran A, mat_tran_item B
+        WHERE A.tran_date &gt; ( select max(stock_date) from target_poitn_stock)
+        AND A.tran_date &lt;= #{ps.calcDate}
+        <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+            AND B.item_type_cd like #{ps.itemTypeCd}
+        </if>
+        <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+            AND B.item_cd like '%${ps.itemCd}%'
+        </if>
+        <if test="ps.itemName!=null and !ps.itemName.equals('')">
+            AND B.item_name like '%${ps.itemName}%'
+        </if>
+        AND A.dest_storage_cd in (
+        SELECT storage_cd
+        FROM storage
+        <where>
+            <if test="ps.areaCd !=null and !ps.areaCd.equals('')">
+                AND area_cd = #{ps.areaCd}
+            </if>
+            <if test="ps.itemTypeCd == 'M0'">
+                AND f_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M1'">
+                AND a_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M2'">
+                AND b_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M3'">
+                AND c_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M5'">
+                AND d_yn = 'Y'
+            </if>
+            <if test="ps.itemTypeCd == 'M6'">
+                AND e_yn = 'Y'
+            </if>
+        </where>
+        )
+        AND A.tran_cd in ('J','L')
+        AND A.mat_tran_id = B.mat_tran_id
+        ) as E , storage F, item_master G
+        WHERE E.storage_cd = F.storage_cd
+        AND E.item_cd = G.item_cd
+        GROUP BY E.item_cd
+        <if test="ps.displayType.equals('IL')">
+            , E.test_no
+        </if>
+        ,E.storage_cd
+        ORDER BY E.item_cd
+        <if test="ps.displayType.equals('IL')">
+            , E.test_no
+        </if>
+        ,E.storage_cd
+    </select>
+
+    <select id="getCurrentStockItemList3" resultType="MatPointStockRead">
+        with target_poitn_stock as (
+            select mat_point_stock_id
+                 , stock_date
+                 , area_cd
+                 , storage_cd
+            from (
+                select mat_point_stock_id
+                     , stock_date
+                     , storage_cd
+                     , area_cd
+                     , ROW_NUMBER() OVER (PARTITION BY storage_cd ORDER BY stock_date DESC) as rank_no
+                from mat_point_stock
+                where stock_date &lt;= #{ps.calcDate}
+                  and proc_yn = 'Y'
+            ) T
+            where rank_no = 1
+        )
+        SELECT E.storage_cd
+             , max(F.storage_name) as storage_name
+             , E.item_cd as item_cd
+             , max(E.item_type_cd) as item_type_cd
+             , max(E.item_name) as item_name
+             , max(G.safe_stock_qty) as safe_stock_qty
+             , max(E.area_cd) as area_cd
+             , sum(stock_qty) as stock_qty
+             <if test="ps.displayType.equals('IL')">
+             , E.test_no
+             , max(E.lot_no) as lot_no
+             </if>
+        FROM (
+        -- 시점재고
+            SELECT area_cd
+                 , storage_cd
+                 , item_cd
+                 , item_type_cd
+                 , item_name
+                 , stock_qty
+                <if test="ps.displayType.equals('IL')">
+                 , lot_no
+                 , test_no
+                </if>
+            FROM mat_point_stock_item_view
+            WHERE mat_point_stock_id in (
+                select mat_point_stock_id
+                from target_poitn_stock
+            )
+            <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+                AND item_type_cd like #{ps.itemTypeCd}
+            </if>
+            <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+                AND item_cd like '%${ps.itemCd}%'
+            </if>
+            <if test="ps.itemName!=null and !ps.itemName.equals('')">
+                AND item_name like '%${ps.itemName}%'
+            </if>
+        UNION ALL
+        -- 자재거래 소스창고 기준
+        SELECT A.area_cd
+             , src_storage_cd as storage_cd
+             , B.item_cd
+             , B.item_type_cd
+             , B.item_name
+             , dbo.destStorageTranSigh(tran_cd, qty) as stock_qty
+             <if test="ps.displayType.equals('IL')">
+             , B.lot_no
+             , B.test_no
+             </if>
+        FROM mat_tran A, mat_tran_item B
+        WHERE A.tran_date &gt; ( select max(stock_date) from target_poitn_stock)
+        AND A.tran_date &lt;= #{ps.calcDate}
+        <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+            AND B.item_type_cd like #{ps.itemTypeCd}
+        </if>
+        <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+            AND B.item_cd like '%${ps.itemCd}%'
+        </if>
+        <if test="ps.itemName!=null and !ps.itemName.equals('')">
+            AND B.item_name like '%${ps.itemName}%'
+        </if>
+        AND A.src_storage_cd in  (
+           select storage_cd from storage
+            <if test="ps.areaCd !=null and !ps.areaCd.equals('')">
+                where area_cd = #{ps.areaCd}
+            </if>
+        )
+        AND A.mat_tran_id = B.mat_tran_id
+        UNION ALL
+        -- 자재거래 대상창고 기준
+        SELECT A.area_cd
+             , dest_storage_cd as storage_cd
+             , B.item_cd
+             , B.item_type_cd
+             , B.item_name
+             , qty as stock_qty
+             <if test="ps.displayType.equals('IL')">
+             , B.lot_no
+             , B.test_no
+             </if>
+        FROM mat_tran A, mat_tran_item B
+        WHERE A.tran_date &gt; ( select max(stock_date) from target_poitn_stock)
+          AND A.tran_date &lt;= #{ps.calcDate}
+        <if test="ps.itemTypeCd!=null and !ps.itemTypeCd.equals('')">
+            AND B.item_type_cd = #{ps.itemTypeCd}
+        </if>
+        <if test="ps.itemCd!=null and !ps.itemCd.equals('')">
+            AND B.item_cd like '%${ps.itemCd}%'
+        </if>
+        <if test="ps.itemName!=null and !ps.itemName.equals('')">
+            AND B.item_name like '%${ps.itemName}%'
+        </if>
+        AND A.dest_storage_cd in (
+            select storage_cd from storage
+            <if test="ps.areaCd !=null and !ps.areaCd.equals('')">
+                where area_cd = #{ps.areaCd}
+            </if>
+        )
+        AND A.tran_cd in ('J','L')
+        AND A.mat_tran_id = B.mat_tran_id
+        ) as E , storage F, item_master G
+        WHERE E.storage_cd = F.storage_cd
+          AND E.item_cd = G.item_cd
+        GROUP BY E.item_cd
+        <if test="ps.displayType.equals('IL')">
+            , E.test_no
+        </if>
+        ,E.storage_cd
+        ORDER BY E.item_cd
+        <if test="ps.displayType.equals('IL')">
+            , E.test_no
+        </if>
+        , E.storage_cd
+    </select>
+
+    <!-- 재고 조회 대상 창고 조회 -->
+    <select id="getTargetStorageList" resultType="StockStorageVo">
+        select
+            #{stdDate} as std_date
+            , isnull(stock_date, '2022-07-01') as stock_date
+            , area_cd
+            , A.storage_cd
+            , storage_name
+            , #{itemTypeCd} as item_type_cd
+            , isnull(mat_stock_id, 0) as mat_stock_id
+            , isnull(#{itemCd},'') as item_cd
+            , isnull(#{itemName},'') as item_name
+        from (
+            select
+                area_cd
+                , storage_cd
+                , storage_name
+            from storage
+            <where>
+                <if test="areaCd !=null and !areaCd.equals('')">
+                    AND area_cd = #{areaCd}
+                </if>
+                <if test="itemTypeCd == 'M0'">
+                    AND f_yn = 'Y'
+                </if>
+                <if test="itemTypeCd == 'M1'">
+                    AND a_yn = 'Y'
+                </if>
+                <if test="itemTypeCd == 'M2' ||  itemTypeCd == 'M7' ">
+                    AND b_yn = 'Y'
+                </if>
+                <if test="itemTypeCd == 'M3'">
+                    AND c_yn = 'Y'
+                </if>
+                <if test="itemTypeCd == 'M5'">
+                    AND d_yn = 'Y'
+                </if>
+                <if test="itemTypeCd == 'M6'">
+                    AND e_yn = 'Y'
+                </if>
+            </where>
+        ) A
+        left join (
+            select
+                storage_cd
+                , mat_stock_id
+                , stock_date
+            from (
+                select
+                    RANK() OVER(PARTITION BY storage_cd ORDER BY STOCK_DATE DESC, mat_stock_id DESC) AS date_rank
+                    , *
+                from mat_stock
+                where storage_cd is not null
+                and stock_date &lt;= #{stdDate}
+                and stock_state &gt; 3
+            ) C
+            where C.date_rank = 1
+        ) B on A.storage_cd = B.storage_cd
+        order by area_cd asc, storage_cd asc
+    </select>
+
+    <select id="getSupplyRegister" resultType="MatSupplyRegisterVo">
+        select
+            A.*
+             , isnull(a_qty * in_price, 0) as a_amount
+             , isnull(e_qty * in_price, 0) as e_amount
+             , isnull(B.total_qty, 0) as start_qty
+             , isnull(B.total_qty * in_price, 0) as start_amount
+             , isnull(C.total_qty, 0) as end_qty
+             , isnull(C.total_qty * in_price, 0) as end_amount
+        from between_tran_history(#{startDate}, #{endDate}, #{itemTypeCd}) A
+        <if test="itemTypeCd !=null and itemTypeCd.equals('M1')">
+            left outer join (select * from tran_total_M1(CONVERT(CHAR(10), dateadd(day, -1, #{startDate}),23), #{itemTypeCd})) B on A.item_cd = B.item_cd
+            left outer join (select * from tran_total_M1(#{endDate}, #{itemTypeCd})) C on A.item_cd = C.item_cd
+        </if>
+        <if test="itemTypeCd !=null and (itemTypeCd.equals('M2') || itemTypeCd.equals('M7'))">
+            left outer join (select * from tran_total_M2(CONVERT(CHAR(10), dateadd(day, -1, #{startDate}),23), #{itemTypeCd})) B on A.item_cd = B.item_cd
+            left outer join (select * from tran_total_M2(#{endDate}, #{itemTypeCd})) C on A.item_cd = C.item_cd
+        </if>
+        where 1 = 1
+        <if test="itemCd !=null and !itemCd.equals('')">
+            AND A.item_cd like '%' + #{itemCd} + '%'
+        </if>
+        <if test="itemName !=null and !itemName.equals('')">
+            AND A.item_name like '%' + #{itemName} + '%'
+        </if>
+        <if test="itemGrp1 !=null and !itemGrp1.equals('')">
+            AND A.item_grp1 = #{itemGrp1}
+        </if>
+        order by A.item_cd
+    </select>
+
+    <select id="getStockItemListByExpiryDate" resultType="map">
+        select
+            AA.*
+            , #{searchDate.stdDate} as stdDate
+            , CONVERT(CHAR(10),B.expiry_date,23) as expiryDate
+            , datediff(DAY, #{searchDate.stdDate}, B.expiry_date) as diffDate
+        from (
+            select
+                item_cd as itemCd
+                , (select item_name from item_master where A.item_cd = item_cd) as itemName
+                , test_no as testNo
+                <foreach collection="storageList" item="item" index="index">
+                    , sum(case when storage_cd = #{item.storageCd} then stock_qty else 0 end) as ${item.storageCd}
+                </foreach>
+                , sum(stock_qty) as totalQty
+                , (select isnull(safe_stock_qty, 0) from item_master where A.item_cd = item_cd) as safeStockQty
+            from (
+            <foreach collection="storageList" item="item" index="index" separator="UNION ALL">
+                select * from tran_test_no(#{item.matStockId}, #{item.stockDate}, #{item.stdDate}, #{item.itemTypeCd}, #{item.storageCd}, #{item.itemCd}, #{item.itemName})
+            </foreach>
+            ) A
+            group by item_cd, test_no
+        ) AA
+        join item_test_no B on AA.testNo = B.test_no
+        where B.expiry_date between #{searchDate.startDate} and #{searchDate.endDate}
+        order by B.expiry_date asc
+    </select>
+
+    <select id="getStockItemListByCreateDate" resultType="map">
+        select
+            A.test_no as testNo
+             , A.item_cd as itemCd
+             , item_name as itemName
+             , customer_cd as customerCd
+             , customer_name as customerName
+             , CONVERT(CHAR(10), create_date, 23) as createDate
+             , diff_date as diffDate
+             , qty as qty
+             , total_qty as totalQty
+             , in_price as inPrice
+             , total_qty * in_price as totalAmt
+        from (
+                 select
+                     item_cd
+                      , test_no
+                      , sum(stock_qty) as total_qty
+                 from (
+                    <foreach collection="storageList" item="item" index="index" separator="UNION ALL">
+                        select * from tran_test_no(#{item.matStockId}, #{item.stockDate}, #{item.stdDate}, #{item.itemTypeCd}, #{item.storageCd}, #{item.itemCd}, #{item.itemName})
+                    </foreach>
+                      ) Z
+                 group by item_cd, test_no
+             ) A
+         join (
+            select
+                test_no
+                 , create_date
+                 , A.item_cd
+                 , item_name
+                 , A.customer_cd
+                 , customer_name
+                 , DATEDIFF(DAY, create_date, #{searchDate.stdDate}) as diff_date
+                 , isnull(B.in_price, 0) as in_price
+                 , qty
+            from item_test_no A
+            join item_master B on A.item_cd = B.item_cd
+            join customer C on A.customer_cd = C.customer_cd
+            where item_gb = 2
+              and create_date between #{searchDate.startDate} and #{searchDate.endDate}
+        ) B on A.test_no = B.test_no
+        order by A.item_cd, A.test_no
+    </select>
+
+    <select id="getStockItemListByTestNo" resultType="map">
+        select B.*
+            , C.item_name as itemName
+            , CONVERT(CHAR(10),D.create_date,23) as createDate
+            , CONVERT(CHAR(10),D.expiry_date,23) as expiryDate
+            , D.pass_state as passState
+            , E.code_name as passStateName
+            , D.end_yn
+            , D.qty as prodQty
+            , 0 as matOrderQty
+        from (
+            select
+                item_cd as itemCd
+                , test_no as testNo
+              --  , lot_no as lotNo
+                <foreach collection="storageList" item="item" index="index">
+                    , sum(case when storage_cd = #{item.storageCd} then stock_qty else 0 end) as ${item.storageCd}
+                </foreach>
+                , sum(stock_qty) as totalQty
+                , (select isnull(safe_stock_qty, 0) from item_master where A.item_cd = item_cd) as safeStockQty
+            from (
+            <foreach collection="storageList" item="item" index="index" separator="UNION ALL">
+                select * from tran_test_no(#{item.matStockId}, #{item.stockDate}, #{item.stdDate}, #{item.itemTypeCd}, #{item.storageCd}, #{item.itemCd}, #{item.itemName})
+            </foreach>
+            ) A
+            group by item_cd, test_no
+        ) B
+        left outer join item_master C on B.itemCd = C.item_cd
+        left outer join item_test_no D on B.testNo = D.test_no
+        left outer join (select * from common_code where code_type = 'PASS_STATE') E on D.pass_state = E.code
+        where D.end_yn = 'N'
+        --and   (b.lotNo is not null or b.lotNo != '')
+        order by itemCd, testNo--, lotNo
+    </select>
+
+    <select id="getStockItemListByItemCd" resultType="map">
+        select
+        item_cd as itemCd
+        , (select item_name from item_master where A.item_cd = item_cd) as itemName
+        <foreach collection="storageList" item="item" index="index">
+            , sum(case when storage_cd = #{item.storageCd} then stock_qty else 0 end) as ${item.storageCd}
+        </foreach>
+        , sum(stock_qty) as totalQty
+        , (select isnull(safe_stock_qty, 0) from item_master where A.item_cd = item_cd) as safeStockQty
+        ,  isnull((select sum(order_qty)
+                    from  mat_order y
+                        inner join mat_order_item x
+                        on y.mat_order_id = x.mat_order_id
+                    where x.item_cd = a.item_cd
+                    and  y.order_date between dateadd(month, -2, #{storageMap.stdDate})  and dateadd(month, 2, #{storageMap.stdDate})
+                    <if test="storageMap.areaCd !=null and !storageMap.areaCd.equals('')">
+                        and  y.area_Cd = #{storageMap.areaCd}
+                    </if>
+                    and  y.end_yn ='N'
+                    ) , 0) as matOrderQty
+        from (
+        <foreach collection="storageList" item="item" index="index" separator="UNION ALL">
+            select * from tran_test_no(#{item.matStockId}, #{item.stockDate}, #{item.stdDate}, #{item.itemTypeCd}, #{item.storageCd}, #{item.itemCd}, #{item.itemName})
+        </foreach>
+        ) A
+        group by item_cd
+        order by item_cd
+    </select>
+
+    <select id="getWeighClosingDay" resultType="WeighClosingItems">
+        select * from get_weigh_closing(#{areaCd}, #{stdDate}, #{stdDate}, 'M1')
+        where use_qty > 0
+        <if test="itemCd!=null and !itemCd.equals('')">
+            and item_cd like '%${itemCd}%'
+        </if>
+        <if test="itemName!=null and !itemName.equals('')">
+            and item_name like '%${itemName}%'
+        </if>
+        order by use_qty desc
+    </select>
+
+    <select id="getWeighClosingMonth" resultType="WeighClosingItems">
+        select * from get_weigh_closing(#{areaCd}, #{stdDate}, convert(varchar, EOMONTH(#{stdDate}), 23), 'M1')
+         <where>
+             <if test="itemCd!=null and !itemCd.equals('')">
+                 and item_cd like '%${itemCd}%'
+             </if>
+             <if test="itemName!=null and !itemName.equals('')">
+                 and item_name like '%${itemName}%'
+             </if>
+         </where>
+        order by use_qty desc
+    </select>
+
+    <select id="getWeighClosingDetail" resultType="WeighClosingDetailItem">
+        select
+            tran_date
+             --, convert(varchar, B.reg_time, 108) as tran_time
+             , tran_cd
+             , code_name as tran_name
+             , B.src_storage_cd
+             , C.storage_name as src_storage_name
+             , B.dest_storage_cd
+             , D.storage_name as dest_storage_name
+             , test_no
+             , qty
+             , F.prod_no
+             , F.item_cd
+             , F.item_name
+        from mat_tran_item A
+         join mat_tran B on A.mat_tran_id = B.mat_tran_id
+         left outer join storage C on B.src_storage_cd = C.storage_cd
+         left outer join storage D on B.dest_storage_cd = D.storage_cd
+         left outer join (select code, code_name from common_code where code_type = 'TRAN_CD') E on B.tran_cd = E.code
+         left outer join work_order_item_view F on B.mat_tran_id = F.tran_id
+        where A.item_cd = #{itemCd}
+          and tran_date between #{startDate} and #{endDate}
+          and tran_cd not in ('L', 'J')
+        order by tran_date desc, B.reg_time desc
+    </select>
+
+</mapper>

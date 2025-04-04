@@ -1,0 +1,33 @@
+[INFO ] 15:39:57.609 com.daehanins.mes.MesApplication - Starting MesApplication on DESKTOP-10HTBDA with PID 2900 (C:\mes\prd\server\jincostech-mes-server_prd\target\classes started by kyt in C:\mes\prd\server\jincostech-mes-server_prd)
+[INFO ] 15:39:57.610 com.daehanins.mes.MesApplication - The following profiles are active: dev
+[INFO ] 15:39:57.645 o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+[INFO ] 15:39:57.645 o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+[INFO ] 15:39:59.301 o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port(s): 9091 (http)
+[INFO ] 15:39:59.308 o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-9091"]
+[INFO ] 15:39:59.308 o.a.catalina.core.StandardService - Starting service [Tomcat]
+[INFO ] 15:39:59.308 o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.27]
+[INFO ] 15:39:59.387 o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+[INFO ] 15:39:59.387 o.s.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 1732 ms
+[INFO ] 15:40:01.276 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+[INFO ] 15:40:01.401 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+[INFO ] 15:40:04.043 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'clientInboundChannelExecutor'
+[INFO ] 15:40:04.049 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'clientOutboundChannelExecutor'
+[INFO ] 15:40:04.055 o.s.s.c.ThreadPoolTaskScheduler - Initializing ExecutorService 'messageBrokerTaskScheduler'
+[INFO ] 15:40:04.092 o.s.s.web.DefaultSecurityFilterChain - Creating filter chain: any request, [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@20d0e2ac, org.springframework.security.web.context.SecurityContextPersistenceFilter@743b386b, org.springframework.security.web.header.HeaderWriterFilter@5dd71fde, org.springframework.web.filter.CorsFilter@21e8cee0, org.springframework.security.web.authentication.logout.LogoutFilter@19e919a2, com.daehanins.mes.biz.security.jwt.AuthTokenFilter@36beedf6, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@26330f7a, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@2ec4c581, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@3cce4cae, org.springframework.security.web.session.SessionManagementFilter@b849902, org.springframework.security.web.access.ExceptionTranslationFilter@60190895, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@f881541]
+[INFO ] 15:40:04.155 o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'brokerChannelExecutor'
+[INFO ] 15:40:04.477 o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+[INFO ] 15:40:04.542 o.s.m.s.b.SimpleBrokerMessageHandler - Starting...
+[INFO ] 15:40:04.542 o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [DefaultSubscriptionRegistry[cache[0 destination(s)], registry[0 sessions]]]]
+[INFO ] 15:40:04.543 o.s.m.s.b.SimpleBrokerMessageHandler - Started.
+[INFO ] 15:40:04.556 o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-9091"]
+[INFO ] 15:40:04.573 o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port(s): 9091 (http) with context path ''
+[INFO ] 15:40:04.576 com.daehanins.mes.MesApplication - Started MesApplication in 7.475 seconds (JVM running for 8.589)
+[INFO ] 15:40:16.536 o.s.m.s.b.SimpleBrokerMessageHandler - Stopping...
+[INFO ] 15:40:16.537 o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [DefaultSubscriptionRegistry[cache[0 destination(s)], registry[0 sessions]]]]
+[INFO ] 15:40:16.537 o.s.m.s.b.SimpleBrokerMessageHandler - Stopped.
+[INFO ] 15:40:16.629 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'brokerChannelExecutor'
+[INFO ] 15:40:16.629 o.s.s.c.ThreadPoolTaskScheduler - Shutting down ExecutorService 'messageBrokerTaskScheduler'
+[INFO ] 15:40:16.631 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'clientOutboundChannelExecutor'
+[INFO ] 15:40:16.631 o.s.s.c.ThreadPoolTaskExecutor - Shutting down ExecutorService 'clientInboundChannelExecutor'
+[INFO ] 15:40:16.638 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+[INFO ] 15:40:16.642 com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
