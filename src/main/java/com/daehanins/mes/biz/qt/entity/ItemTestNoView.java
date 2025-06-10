@@ -66,4 +66,6 @@ public class ItemTestNoView {
 
     private String endYn;
 
+    private BigDecimal strQty;
+
 }
