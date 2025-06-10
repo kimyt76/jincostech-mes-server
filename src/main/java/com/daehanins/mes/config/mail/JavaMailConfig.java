@@ -34,8 +34,10 @@ public class JavaMailConfig {
 
         String securityVal = "";
 
+
         for( SystemEnvConfig conf : systemEnvConfigList) {
             if (conf.getEnvConfigCd().equals("mail.host")) mailSender.setHost(conf.getVarValue());
+
             if (conf.getEnvConfigCd().equals("mail.port")) mailSender.setPort(Integer.parseInt(conf.getVarValue()));
             if (conf.getEnvConfigCd().equals("mail.username")) mailSender.setUsername(conf.getVarValue());
             if (conf.getEnvConfigCd().equals("mail.password")) mailSender.setPassword(conf.getVarValue());
@@ -45,7 +47,9 @@ public class JavaMailConfig {
         if (securityVal.equals("Y")) {
             Properties props = new Properties();
             props.setProperty("mail.smtp.auth", "true");
-            props.setProperty("mail.smtp.starttls.enable", "true");
+            props.setProperty("mail.smtp.starttls.enable", "false");
+            props.setProperty("mail.smtp.ssl.enable", "true");
+
             mailSender.setJavaMailProperties(props);
         }
 
