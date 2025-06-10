@@ -153,7 +153,7 @@
                 <textElement textAlignment="Center" verticalAlignment="Middle">
                     <font fontName="맑은 고딕" size="9"/>
                 </textElement>
-                <text><![CDATA[생산일자]]></text>
+                <text><![CDATA[제조일자]]></text>
             </staticText>
             <staticText>
                 <reportElement x="110" y="160" width="40" height="20" uuid="ec561ec4-099b-4e05-9eb2-005bc34af35c">
@@ -165,7 +165,7 @@
                 <textElement textAlignment="Center" verticalAlignment="Middle">
                     <font fontName="맑은 고딕" size="9"/>
                 </textElement>
-                <text><![CDATA[생산수량]]></text>
+                <text><![CDATA[제조량]]></text>
             </staticText>
             <textField isBlankWhenNull="true">
                 <reportElement x="150" y="160" width="65" height="20" uuid="04d79872-61a5-49d5-b6e5-62f5d828ff6b"/>
